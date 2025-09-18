@@ -1,0 +1,6 @@
+@import "tailwindcss";
+/* Quick utility buttons using Tailwind via @apply */
+.btn { @apply px-3 py-2 rounded bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50; }
+.btn-secondary { @apply px-3 py-2 rounded bg-gray-600 text-white hover:bg-gray-700; }
+.btn-danger { @apply px-3 py-2 rounded bg-rose-600 text-white hover:bg-rose-700; }
+.btn-outline { @apply px-3 py-2 rounded border border-sky-300 text-sky-700 hover:bg-sky-50; }
