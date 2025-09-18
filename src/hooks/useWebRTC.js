@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { getWsUrl } from '../lib/axios.js'
 
 const ICE_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
 
@@ -111,11 +112,7 @@ export default function useWebRTC({ sessionId, role, onRemoteStream, onEvent }) 
 
   useEffect(() => {
     if (!sessionId || !role) return () => {}
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const defaultUrl = `${protocol}://${window.location.host}/ws`
-    const overrideUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_WS_URL) ? import.meta.env.VITE_WS_URL : ''
-    const wsUrl = overrideUrl || defaultUrl
-    const ws = new WebSocket(wsUrl)
+    const ws = new WebSocket(getWsUrl('/ws'))
     socketRef.current = ws
 
     ws.onopen = () => {

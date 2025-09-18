@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import api from '../lib/axios.js'
 
 export default function useCamera({ onEvent, sessionId }) {
   const videoRef = useRef(null)
@@ -74,6 +75,6 @@ async function uploadRecording(blob, sessionId) {
   const form = new FormData()
   form.append('file', blob, `recording-${Date.now()}.webm`)
   form.append('sessionId', sessionId)
-  const res = await fetch('/api/upload', { method: 'POST', body: form })
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+  const res = await api.post('/api/upload', form, { headers: { 'Content-Type': undefined } })
+  if (res.status < 200 || res.status >= 300) throw new Error(`Upload failed: ${res.status}`)
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { nowISO } from '../lib/utils.js'
+import api from '../lib/axios.js'
 
 export default function useSession() {
   const [candidateName, setCandidateName] = useState('')
@@ -26,13 +27,12 @@ export default function useSession() {
   const saveName = (name) => {
     setCandidateName(name)
     localStorage.setItem('proctor.candidateName', name)
-    fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ sessionId, candidateName: name }) }).catch(()=>{})
+    api.post('/api/sessions', { sessionId, candidateName: name }).catch(()=>{})
   }
-  const markStart = () => fetch('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId, candidateName, startedAt: nowISO() }) }).catch(()=>{})
-  const markEnd = () => fetch('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId, endedAt: nowISO() }) }).catch(()=>{})
+  const markStart = () => api.post('/api/sessions', { sessionId, candidateName, startedAt: nowISO() }).catch(()=>{})
+  const markEnd = () => api.post('/api/sessions', { sessionId, endedAt: nowISO() }).catch(()=>{})
   const fetchReport = async () => {
-    const res = await fetch(`/api/reports/${sessionId}`)
-    const data = await res.json()
+    const { data } = await api.get(`/api/reports/${sessionId}`)
     return data?.report
   }
   return { sessionId, candidateName, saveName, markStart, markEnd, fetchReport }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import api from '../lib/axios.js'
 
 export default function Signup() {
   const [name, setName] = useState('')
@@ -10,9 +11,8 @@ export default function Signup() {
     e.preventDefault()
     setError('')
     try {
-      const res = await fetch('/api/auth/signup', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, email, password }) })
-      const data = await res.json()
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Signup failed')
+      const { data } = await api.post('/api/auth/signup', { name, email, password })
+      if (!data?.ok) throw new Error(data?.error || 'Signup failed')
       localStorage.setItem('auth.token', data.token)
       localStorage.setItem('auth.user', JSON.stringify(data.user))
       location.href = '/schedule'

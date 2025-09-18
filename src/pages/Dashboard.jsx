@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import api from '../lib/axios.js'
 
 function getToken() { return localStorage.getItem('auth.token') || '' }
 
@@ -12,9 +13,8 @@ export default function Dashboard() {
     if (!t) { location.href = '/login'; return }
     (async () => {
       try {
-        const res = await fetch('/api/interviews', { headers: { Authorization: `Bearer ${t}`, 'x-auth-token': t } })
-        const data = await res.json()
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to load')
+        const { data } = await api.get('/api/interviews')
+        if (!data?.ok) throw new Error(data.error || 'Failed to load')
         setList(data.interviews)
         setReports(data.reports || {})
       } catch (e) { setError(e.message) }

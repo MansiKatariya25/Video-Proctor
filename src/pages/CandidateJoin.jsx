@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import api from '../lib/axios.js'
 
 export default function CandidateJoin() {
   const token = (typeof location !== 'undefined' ? location.pathname.split('/').pop() : '')
@@ -16,9 +17,8 @@ export default function CandidateJoin() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/interviews/${token}`)
-        const data = await res.json()
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Not found')
+        const { data } = await api.get(`/api/interviews/${token}`)
+        if (!data?.ok) throw new Error(data.error || 'Not found')
         setInterview(data.interview)
       } catch (e) {
         setError(e.message)
@@ -72,12 +72,12 @@ export default function CandidateJoin() {
     if (!camOk || !micOk) { setError('Please test camera and microphone'); return }
     try {
       // Save candidate info to interview
-      await fetch(`/api/interviews/${token}/candidate`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ candidateName: name, candidateEmail: email }) })
+      await api.post(`/api/interviews/${token}/candidate`, { candidateName: name, candidateEmail: email })
       // Persist session + name for the proctoring app
       if (interview?.sessionId) localStorage.setItem('proctor.sessionId', interview.sessionId)
       localStorage.setItem('proctor.candidateName', name)
       // Also upsert session on backend
-      await fetch('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sessionId: interview.sessionId, candidateName: name }) })
+      await api.post('/api/sessions', { sessionId: interview.sessionId, candidateName: name })
       // Navigate to proctor page bound to this session
       location.href = `/interview/${encodeURIComponent(interview.sessionId)}`
     } catch (e) {

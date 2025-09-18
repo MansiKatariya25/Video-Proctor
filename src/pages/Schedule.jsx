@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import api from '../lib/axios.js'
 
 export default function Schedule() {
   const [title, setTitle] = useState('')
@@ -15,12 +16,8 @@ export default function Schedule() {
     try {
       const token = localStorage.getItem('auth.token') || ''
       if (!token) { location.href = '/login'; return }
-      const res = await fetch('/api/interviews', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'x-auth-token': token },
-        body: JSON.stringify({ title, interviewerName, interviewerEmail, scheduledAt: scheduledAt || undefined, token })
-      })
-      const data = await res.json()
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to create')
+      const { data } = await api.post('/api/interviews', { title, interviewerName, interviewerEmail, scheduledAt: scheduledAt || undefined, token })
+      if (!data?.ok) throw new Error(data?.error || 'Failed to create')
       setResult(data)
     } catch (e) {
       setError(e.message)

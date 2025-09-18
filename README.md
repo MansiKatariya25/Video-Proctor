@@ -10,3 +10,14 @@ Currently, two official plugins are available:
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+# Video Proctoring
+
+This project now uses Axios for all API calls via a centralized client at `src/lib/axios.js`.
+
+Configure base URLs in `.env`:
+
+- `VITE_BASE_URL=http://localhost:3001` – API base used by Axios and Vite proxy
+- `VITE_WS_URL=ws://localhost:3001` – WebSocket signaling (optional; derived from BASE when missing)
+
+Axios auth headers are attached automatically from `localStorage.auth.token`.

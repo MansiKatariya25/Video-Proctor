@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import api from '../lib/axios.js'
 import useWebRTC from '../hooks/useWebRTC.js'
 
 function useSessionIdFromPath(prefix='/monitor/') {
@@ -98,8 +99,7 @@ export default function Monitor() {
     if (!sessionId) return
     let cancelled = false
     setLoadingEvents(true)
-    fetch(`/api/events?sessionId=${encodeURIComponent(sessionId)}&limit=200`).then(async (res) => {
-      const data = await res.json()
+    api.get(`/api/events`, { params: { sessionId, limit: 200 } }).then(({ data }) => {
       if (!cancelled && data?.ok) {
         setEvents(data.events || [])
       }
@@ -142,7 +142,7 @@ export default function Monitor() {
     if (!message) return
     const evt = { time: new Date().toISOString(), type: 'interviewer-note', details: message, sessionId }
     sendEvent(evt)
-    fetch('/api/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(evt) }).catch(() => {})
+    api.post('/api/events', evt).catch(() => {})
     setEvents((prev) => [evt, ...prev])
   }, [sendEvent, sessionId])
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import api from '../lib/axios.js'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -9,9 +10,8 @@ export default function Login() {
     e.preventDefault()
     setError('')
     try {
-      const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) })
-      const data = await res.json()
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Login failed')
+      const { data } = await api.post('/api/auth/login', { email, password })
+      if (!data?.ok) throw new Error(data?.error || 'Login failed')
       localStorage.setItem('auth.token', data.token)
       localStorage.setItem('auth.user', JSON.stringify(data.user))
       location.href = '/schedule'

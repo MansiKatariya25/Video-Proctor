@@ -4,6 +4,7 @@ import useCamera from '../hooks/useCamera.js'
 import useDetection from '../hooks/useDetection.js'
 import { nowISO } from '../lib/utils.js'
 import useWebRTC from '../hooks/useWebRTC.js'
+import api from '../lib/axios.js'
 
 export default function ProctorLayout() {
   const { sessionId, candidateName, saveName, markStart, markEnd, fetchReport } = useSession()
@@ -39,7 +40,7 @@ export default function ProctorLayout() {
   const handleEvent = useCallback((type, details, extra = {}) => {
     const ev = { time: nowISO(), type, details, sessionId, ...extra }
     setEvents((prev) => [ev, ...prev])
-    fetch('/api/events', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(ev) }).catch(()=>{})
+    api.post('/api/events', ev).catch(()=>{})
     sendEvent(ev)
   }, [sendEvent, sessionId])
 
