@@ -240,7 +240,7 @@ export default function Monitor() {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white grid place-items-center font-bold text-lg">J</div>
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white grid place-items-center font-bold text-lg">VP</div>
               <div>
                 <h1 className="font-bold text-gray-900 flex items-center gap-2">
                   <MonitorIcon className="w-4 h-4" />
@@ -432,7 +432,7 @@ export default function Monitor() {
           </div>
 
           {/* Live Alerts Sidebar */}
-          <div className="bg-white rounded-lg border border-gray-200">
+          <div className="bg-white rounded-lg border border-gray-200 h-[60vh]">
             <div className="p-3 border-b bg-gray-50">
               <h3 className="font-medium text-gray-900">Live Alerts</h3>
             </div>

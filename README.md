@@ -1,23 +1,97 @@
-# React + Vite
+# Video Proctoring System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full‑stack web application for remote interview proctoring.
 
-Currently, two official plugins are available:
+Key features
+- Live Candidate ↔ Interviewer video using WebRTC (custom WS signaling).
+- Computer‑vision proctoring: face presence, gaze, eye closure, drowsiness, and object detection (YOLO) with on‑screen HUD.
+- Real‑time events and alerts (toasts for interviewer).
+- Recording: interviewer can record candidate’s remote video.
+- Reporting: generate JSON report and on‑demand PDF (server‑side with PDFKit).
+- Scheduling flow: create interview, share candidate link, join monitor.
+- Auth: email/password with persistent token.
+- Modern UI (Tailwind) with glass cards.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Getting started
+1) Install deps
+- npm install
 
-## Expanding the ESLint configuration
+2) Environment (.env at project root)
+- VITE_BASE_URL=http://localhost:3001
+- VITE_WS_URL=ws://localhost:3001
+- Optional YOLO variables (see src/lib/yolo.js)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3) Run (two terminals)
+- Backend: npm run server
+- Frontend: npm run dev (Vite on 5173/5174)
+- Health check: http://localhost:3001/api/health
 
-# Video Proctoring
+Folder structure
+- server/
+  - index.js — Express app + WS signaling server (path /ws)
+  - routes/
+    - auth.js — signup/login/me
+    - interviews.js — schedule, candidate join
+    - sessions.js — upsert session start/end
+    - events.js — persist proctoring events
+    - reports.js — JSON report and PDF download
+  - models/ — Mongoose schemas (User, Interview, Session, Event, Report)
+  - middleware/auth.js — token auth
+- src/
+  - App.jsx — route switcher; ToastHost mounted
+  - components/
+    - ProctorLayout.jsx — candidate app (camera, CV, send events)
+    - Toast.jsx — react‑toastify wrapper
+  - pages/
+    - Login.jsx / Signup.jsx — auth
+    - Schedule.jsx — create interview, share candidate link, join monitor
+    - Dashboard.jsx — list interviews, open monitor, download PDF
+    - CandidateJoin.jsx — candidate preflight checks, redirect to /interview/{sessionId}
+    - Monitor.jsx — interviewer side (receive stream, recording, report, end interview)
+  - hooks/
+    - useWebRTC.js — WebRTC connection + WS signaling
+    - useCamera.js — camera/recording helper
+    - useDetection.js — runs CV, emits live status and logs events
+    - useSession.js — session id + persistence
+  - lib/
+    - axios.js — Axios instance + getWsUrl()
+    - yolo.js — object detection
+    - mediapipe.js — face/eye detection helpers
+    - utils.js — helpers
+  - index.css — Tailwind + theme utilities
 
-This project now uses Axios for all API calls via a centralized client at `src/lib/axios.js`.
+Core flow
+- Schedule (Interviewer)
+  - Creates interview → gets candidate link and sessionId.
+  - Can open Monitor (/monitor/{sessionId}).
+- CandidateJoin (Candidate)
+  - Opens candidate link (/candidate/{token}), verifies camera/mic.
+  - Redirects to /interview/{sessionId} and starts camera.
+- WebRTC
+  - Signaling over WS (/ws). Candidate publishes AV; interviewer receives.
+  - ICE servers: public Google STUN; add TURN for strict NATs if needed.
+- Detection + Events
+  - Candidate runs detection and emits events + live status; HUD drawn on canvas.
+  - Interviewer sees HUD and receives live status (faces/looking/eye/objects).
+- Recording (Interviewer)
+  - Records remote stream (MediaRecorder) and can download .webm.
+- Reporting
+  - Generate JSON: GET /api/reports/{sessionId}
+  - Download PDF: GET /api/reports/{sessionId}/pdf (layout with summary, objects, deductions, totals)
+- End Interview (Interviewer)
+  - Sends “interview-ended” event; candidate auto‑stops camera and shows banner.
 
-Configure base URLs in `.env`:
+Toasts (react‑toastify)
+- Mounted in App via ToastHost.
+- Use: import { toast } from 'src/components/Toast.jsx'
+- Examples: toast({ type:'success', title:'Logged in' }), toast({ type:'error', title:'Report failed', message: err })
 
-- `VITE_BASE_URL=http://localhost:3001` – API base used by Axios and Vite proxy
-- `VITE_WS_URL=ws://localhost:3001` – WebSocket signaling (optional; derived from BASE when missing)
+Dev notes
+- Vite dev server proxies /api and /ws to backend via vite.config.js and env.
+- If PDF opens in SPA route, ensure using absolute API origin (VITE_BASE_URL).
+- For unstable FaceMesh, set VITE_DISABLE_FACEMESH=true to use FaceDetector fallback.
 
-Axios auth headers are attached automatically from `localStorage.auth.token`.
+Security
+- Tokens stored in localStorage for simplicity; production should use HTTPS and secure cookies.
+- Add TURN for reliable WebRTC in corporate networks.
+

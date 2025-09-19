@@ -3,6 +3,7 @@ import PDFDocument from 'pdfkit'
 import Event from '../models/Event.js'
 import Session from '../models/Session.js'
 import Report from '../models/Report.js'
+import Interview from '../models/Interview.js'
 
 const router = Router()
 
@@ -12,9 +13,10 @@ router.get('/:sessionId/pdf', async (req, res) => {
     const { sessionId } = req.params
     if (!sessionId) return res.status(400).json({ error: 'sessionId required' })
 
-    const [events, session] = await Promise.all([
+    const [events, session, interview] = await Promise.all([
       Event.find({ sessionId }).sort({ time: 1 }).lean(),
       Session.findOne({ sessionId }).lean(),
+      Interview.findOne({ sessionId }).lean(),
     ])
 
     const summary = buildSummary(events, session)
@@ -46,29 +48,53 @@ router.get('/:sessionId/pdf', async (req, res) => {
     doc.pipe(res)
 
     // Header
-    doc.fontSize(18).text('Proctoring Report', { align: 'center' })
-    doc.moveDown(0.5)
-    doc.fontSize(10).text(new Date().toLocaleString(), { align: 'center' })
-    doc.moveDown()
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke()
-    doc.moveDown()
+    doc.fontSize(20).text('Proctoring Report', { align: 'center' })
+    if (interview?.title) doc.moveDown(0.2).fontSize(12).text(interview.title, { align: 'center' })
+    doc.moveDown(0.2).fontSize(10).text(new Date().toLocaleString(), { align: 'center' })
+    doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke().moveDown()
 
-    // Candidate/session block
+    // Summary
     const candidateName = summary.candidateName || 'N/A'
+    const candidateEmail = summary.candidateEmail || 'N/A'
+    const interviewerName = interview?.interviewerName || 'N/A'
+    const interviewerEmail = interview?.interviewerEmail || 'N/A'
+
     doc.fontSize(12)
-      .text(`Candidate: ${candidateName}`)
-      .text(`Session ID: ${sessionId}`)
-      .text(`Interview Duration: ${duration}`)
-      .text(`Time Range: ${summary.startTime || 'N/A'}  ->  ${summary.endTime || 'N/A'}`)
+    doc.text(`Candidate: ${candidateName}`)
+    doc.text(`Email: ${candidateEmail}`)
+    doc.text(`Interviewer: ${interviewerName}`)
+    doc.text(`Email: ${interviewerEmail}`)
+    doc.text(`Session ID: ${sessionId}`)
+    doc.text(`Interview Duration: ${duration}`)
+    doc.text(`Time Range: ${summary.startTime || 'N/A'}  ->  ${summary.endTime || 'N/A'}`)
+    if (interview?.scheduledAt) doc.text(`Scheduled: ${new Date(interview.scheduledAt).toLocaleString()}`)
     doc.moveDown()
 
-    // Integrity score
-    doc.fontSize(14).text(`Integrity Score: ${integrityScore}/100`)
-    doc.moveDown(0.5)
+    // Detected Objects
+    doc.fontSize(14).text('Detected Objects')
+    const objEntries = Object.entries(summary.objects || {})
+    if (objEntries.length) {
+      doc.moveDown(0.2).fontSize(12)
+      objEntries.forEach(([k, v]) => doc.text(`• ${k}: ${v}`))
+    } else {
+      doc.moveDown(0.2).fontSize(12).text('• None')
+    }
 
-    // Deductions table
-    doc.fontSize(12).text('Deductions (flat per category):')
+    doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke().moveDown(0.5)
+
+    // Deductions table (aligned columns)
+    doc.fontSize(14).text('Deductions (flat per category)')
+    doc.moveDown(0.3)
+    const colX = [55, 300, 380, 470]
+    doc.fontSize(11)
+    doc.text('Category', colX[0], doc.y)
+      .text('Count', colX[1], doc.y)
+      .text('Weight', colX[2], doc.y)
+      .text('Applied', colX[3], doc.y)
     doc.moveDown(0.2)
+    doc.moveTo(colX[0], doc.y).lineTo(545, doc.y).stroke()
+    doc.moveDown(0.2)
+
     const rows = [
       ['Focus Lost', String(episodes.focus), String(weights.focusLoss), String(deductions.focusLoss)],
       ['No Face', String(episodes.noFace), String(weights.noFace), String(deductions.noFace)],
@@ -79,16 +105,7 @@ router.get('/:sessionId/pdf', async (req, res) => {
       ['Drowsiness', String(episodes.drowsiness), String(weights.drowsiness), String(deductions.drowsiness)],
       ['Background Voices', String(episodes.backgroundVoices), String(weights.backgroundVoices), String(deductions.backgroundVoices)],
     ]
-    const colX = [55, 250, 360, 440]
-    doc.fontSize(11)
-    doc.text('Category', colX[0], doc.y)
-      .text('Count', colX[1], doc.y)
-      .text('Weight', colX[2], doc.y)
-      .text('Applied', colX[3], doc.y)
-    doc.moveDown(0.2)
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke()
-    doc.moveDown(0.2)
-    rows.forEach(r => {
+    rows.forEach((r) => {
       const y = doc.y
       doc.text(r[0], colX[0], y)
         .text(r[1], colX[1], y)
@@ -96,19 +113,19 @@ router.get('/:sessionId/pdf', async (req, res) => {
         .text(r[3], colX[3], y)
       doc.moveDown(0.2)
     })
-    doc.moveDown()
-    doc.text(`Total Deduction: ${totalDeduction}`, { align: 'right' })
-    doc.moveDown()
 
-    // Suspicious object tallies (from summary)
-    const objEntries = Object.entries(summary.objects || {})
-    if (objEntries.length) {
-      doc.fontSize(12).text('Detected Objects (raw tallies):')
-      objEntries.forEach(([k, v]) => doc.text(`- ${k}: ${v}`))
-      doc.moveDown()
-    }
+    doc.moveDown().moveTo(50, doc.y).lineTo(545, doc.y).stroke()
+
+    // Totals (left aligned, full width)
+    const pageLeft = 50
+    const contentWidth = 545 - pageLeft
+    doc.moveDown()
+    doc.fontSize(16).text(`Total Deduction: ${totalDeduction}`, pageLeft, undefined, { width: contentWidth, align: 'left' })
+    doc.moveDown(0.2)
+    doc.fontSize(20).text(`Integrity Score: ${integrityScore}/100`, pageLeft, undefined, { width: contentWidth, align: 'left' })
 
     // Footer
+    doc.moveDown(1)
     doc.fontSize(9).fillColor('#555').text('Generated by Video Proctoring System', 50, 780, { align: 'center' })
 
     doc.end()
@@ -282,7 +299,7 @@ function episodeConfigFromEnv() {
     multiFaceCooldownSec: num('REPORT_MULTIFACE_COOLDOWN', 20),
     noFaceCooldownSec: num('REPORT_NOFACE_COOLDOWN', 30),
     eyesClosedCooldownSec: num('REPORT_EYESCLOSED_COOLDOWN', 15),
-    drowsyCooldownSec: num('REPORT_DROWSY_COOLDOWN', 20),
+    drowyCooldownSec: num('REPORT_DROWSY_COOLDOWN', 20),
     audioCooldownSec: num('REPORT_AUDIO_COOLDOWN', 20),
   }
 }

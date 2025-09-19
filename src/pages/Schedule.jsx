@@ -64,7 +64,7 @@ export default function Schedule() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white grid place-items-center font-bold text-xl shadow-lg">
-                J
+                VP
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Schedule Job Interviews</h1>
