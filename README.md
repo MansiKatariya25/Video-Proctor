@@ -13,18 +13,45 @@ Key features
 - Modern UI (Tailwind) with glass cards.
 
 Getting started
-1) Install deps
-- npm install
+## Environment variables (.env)
+Create a `.env` file in the project root. Example:
 
-2) Environment (.env at project root)
-- VITE_BASE_URL=http://localhost:3001
-- VITE_WS_URL=ws://localhost:3001
-- Optional YOLO variables (see src/lib/yolo.js)
+```
+# Frontend (Vite)
+VITE_BASE_URL=http://localhost:3001
+VITE_WS_URL=ws://localhost:3001
+# Optional — detection tuning
+VITE_DISABLE_FACEMESH=false
+VITE_YOLO_MODEL_URL=/public/models/yolov8s.onnx
+VITE_YOLO_INPUT=640
+VITE_YOLO_SCORE=0.35
+VITE_YOLO_NMS_IOU=0.45
+VITE_YOLO_OUTPUT_LAYOUT=nms
 
-3) Run (two terminals)
-- Backend: npm run server
-- Frontend: npm run dev (Vite on 5173/5174)
-- Health check: http://localhost:3001/api/health
+# Backend (server)
+MONGO_URL=mongodb://127.0.0.1:27017/proctoring
+MONGO_DB=VideoProctor
+APP_ORIGIN=http://localhost:5173
+PORT=3001
+```
+
+Notes
+- VITE_BASE_URL is the API origin used by Axios and the dev proxy.
+- VITE_WS_URL is the WebSocket signaling endpoint; if omitted, it’s derived from VITE_BASE_URL.
+- APP_ORIGIN is used by the backend to build shareable candidate links in emails/UI.
+- MONGO_URL/MONGO_DB configure MongoDB for sessions/events/reports.
+
+## Run locally
+1. Install deps: `npm install`
+2. Start backend (terminal 1): `npm run server`
+3. Start frontend (terminal 2): `npm run dev`
+4. Open: `http://localhost:5173`
+
+## Submission instructions
+If your grader starts the server for you, include the `.env` above and mention:
+- Backend: `node server/index.js` (reads PORT)
+- Frontend: `npm run dev` (Vite will choose a free port and proxy to `VITE_BASE_URL`)
+- Health: `GET /api/health` on the backend should return `{ ok: true }`.
 
 Folder structure
 - server/
@@ -94,4 +121,9 @@ Dev notes
 Security
 - Tokens stored in localStorage for simplicity; production should use HTTPS and secure cookies.
 - Add TURN for reliable WebRTC in corporate networks.
+
+## Roadmap-future features
+- Two‑way live screen sharing (candidate and interviewer) with quick toggle.
+- Cloud recording upload and long‑term storage.
+- Multi‑interviewer panel and group chat.
 
