@@ -312,14 +312,24 @@ export async function detectYOLO(video) {
 
     // Filter by target classes and thresholds
     outDet = outDet.filter(d => {
-      const labelLower = d.label.toLowerCase()
-      // Check if it's a target class
-      const isTarget = TARGETS.length === 0 || TARGETS.some(target => labelLower.includes(target))
-      if (!isTarget) return false
-      
-      // Check confidence threshold
-      const threshold = CLASS_THRESH[labelLower] ?? SCORE_THRESH
-      return d.confidence >= threshold
+  const labelLower = d.label.toLowerCase()
+
+  // BLOCK REMOTES COMPLETELY - regardless of targets list
+  if (labelLower === 'remote' || labelLower.includes('remote')) {
+    if (DBG) console.info('[YOLO] Blocked remote detection:', d.confidence.toFixed(3))
+    return false
+  }
+  
+  // Check if it's a target class (exact matching)
+  const isTarget = TARGETS.length === 0 || TARGETS.some(target => {
+    return target.toLowerCase() === labelLower
+  })
+  
+  if (!isTarget) return false
+  
+  // Check confidence threshold
+  const threshold = CLASS_THRESH[labelLower] ?? SCORE_THRESH
+  return d.confidence >= threshold
     })
 
     // Update performance stats
