@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { nowISO } from '../lib/utils.js'
-import { detectFacesWithFaceMesh, detectFacesWithFaceDetector, detectFacesWithMPFaceDetection } from '../lib/mediapipe.js'
+import { detectFacesWithFaceMesh, detectFacesWithFaceDetector } from '../lib/mediapipe.js'
 import { detectYOLO } from '../lib/yolo.js'
 
 const DBG = String(import.meta.env.VITE_YOLO_DEBUG || 'false').toLowerCase() === 'true'
@@ -187,7 +187,7 @@ export default function useDetection({ videoRef, canvasRef, enabled, onEvent, on
         
         if (!facesInfo || Number(facesInfo.count || 0) === 0) {
           // Try MediaPipe Face Detection (boxes only)
-          const mpfd = await detectFacesWithMPFaceDetection(video)
+          const mpfd = await detectFacesWithFaceDetector(video)
           facesInfo = mpfd || facesInfo
         }
         if (!facesInfo || Number(facesInfo.count || 0) === 0) {
@@ -221,6 +221,7 @@ export default function useDetection({ videoRef, canvasRef, enabled, onEvent, on
                 eyesClosed: !!facesInfo.eyeData.eyesClosed,
                 drowsinessLevel: facesInfo.eyeData.drowsinessLevel,
               } : null,
+              objects: Array.isArray(lastObjectsRef.current) ? lastObjectsRef.current.map(o=>o.label) : [],
             })
           }
         }

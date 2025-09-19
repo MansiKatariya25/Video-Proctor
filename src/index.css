@@ -4,3 +4,23 @@
 .btn-secondary { @apply px-3 py-2 rounded bg-gray-600 text-white hover:bg-gray-700; }
 .btn-danger { @apply px-3 py-2 rounded bg-rose-600 text-white hover:bg-rose-700; }
 .btn-outline { @apply px-3 py-2 rounded border border-sky-300 text-sky-700 hover:bg-sky-50; }
+
+/* Theme helpers */
+.card { @apply rounded-xl bg-white/80 backdrop-blur shadow border border-gray-200 text-[15px]; }
+.card-dark { @apply rounded-xl bg-slate-900/90 text-slate-100 backdrop-blur shadow; }
+.input { @apply w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-300 focus:border-sky-300 bg-white/80 text-base; }
+.label { @apply block text-base font-medium text-gray-700 mb-1; }
+.toolbar { @apply flex items-center justify-between px-4 py-3 rounded-lg bg-white/90 backdrop-blur border text-base; }
+.sidebar { @apply w-56 bg-white/80 backdrop-blur border-r border-gray-200 p-4; }
+.badge { @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium bg-sky-100 text-sky-700; }
+.chip { @apply inline-flex items-center gap-2 rounded-full bg-white/90 border px-3 py-1 text-sm; }
+.kbd { @apply inline-block rounded border px-1.5 py-0.5 bg-white/80 text-sm text-gray-700; }
+
+/* Video container theme */
+.video-shell { @apply relative aspect-video rounded-2xl overflow-hidden bg-slate-900 shadow-xl; }
+.video-pip { @apply absolute top-4 right-4 w-40 h-28 rounded-lg border border-white/60 shadow-lg bg-black/80; }
+.hud { @apply absolute top-3 left-3 bg-black/70 text-green-400 text-xs p-2 rounded; }
+
+/* Layout helpers */
+.page { @apply min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 text-[15px] md:text-base; }
+.container { @apply max-w-7xl mx-auto p-6; }

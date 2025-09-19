@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Video, VideoOff, Download, Eye, Users, Wifi, WifiOff, AlertTriangle, FileText } from 'lucide-react'
 import useSession from '../hooks/useSession.js'
 import useCamera from '../hooks/useCamera.js'
 import useDetection from '../hooks/useDetection.js'
@@ -15,6 +16,7 @@ export default function ProctorLayout() {
   const remoteVideoRef = useRef(null)
   const remoteAudioRef = useRef(null)
   const [liveStatus, setLiveStatus] = useState(null)
+  const [endedByInterviewer, setEndedByInterviewer] = useState(false)
 
   const handleRemoteStream = useCallback(({ stream }) => {
     setRemoteActive(Boolean(stream))
@@ -27,6 +29,9 @@ export default function ProctorLayout() {
 
   const handleIncomingEvent = useCallback((incoming) => {
     if (!incoming) return
+    if (incoming.type === 'interview-ended') {
+      setEndedByInterviewer(true)
+    }
     setEvents((prev) => [incoming, ...prev])
   }, [])
 
@@ -45,6 +50,13 @@ export default function ProctorLayout() {
   }, [sendEvent, sessionId])
 
   const camera = useCamera({ onEvent: handleEvent, sessionId })
+
+  useEffect(() => {
+    if (endedByInterviewer && camera.streamActive) {
+      try { camera.stopCamera() } catch {}
+    }
+  }, [endedByInterviewer, camera.streamActive])
+
   const { status } = useDetection({
     videoRef: camera.videoRef,
     canvasRef: camera.canvasRef,
@@ -52,7 +64,6 @@ export default function ProctorLayout() {
     onEvent: handleEvent,
     onStatus: (s) => {
       setLiveStatus(s)
-      // Broadcast a lightweight status event to viewers
       sendEvent({ type: 'live-status', ...s, sessionId })
     }
   })
@@ -68,131 +79,186 @@ export default function ProctorLayout() {
   }, [camera.streamActive, camera.streamRef, setLocalStream])
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-3xl font-semibold mb-4">Video Proctoring System</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className="mb-3 flex flex-col sm:flex-row gap-2 items-start sm:items-end">
-            <label className="text-sm">
-              Candidate Name
-              <input defaultValue={candidateName} onBlur={(e)=>saveName(e.target.value)} placeholder="Enter candidate name" className="ml-2 px-2 py-1 border rounded" />
-            </label>
-            <button className="btn" onClick={async ()=>{ const r = await fetchReport(); setReport(r) }}>Generate Report</button>
-          </div>
-          <div className="relative aspect-video bg-black rounded-lg overflow-hidden shadow">
-            <video ref={camera.videoRef} className="absolute inset-0 w-full h-full object-contain z-0" playsInline muted></video>
-            <canvas ref={camera.canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
-            <video ref={remoteVideoRef} className={`absolute top-3 right-3 w-40 h-28 rounded border border-white/60 shadow-lg bg-black/80 z-20 ${remoteActive ? '' : 'hidden'}`} playsInline autoPlay muted></video>
-            <audio ref={remoteAudioRef} autoPlay playsInline className="hidden"></audio>
-            {/* Removed duplicate bottom-left status; canvas overlay already shows top-left HUD */}
-          </div>
-          <div className="flex gap-2 mt-4">
-            {!camera.streamActive ? (
-              <button onClick={camera.startCamera} className="btn">Start Camera</button>
-            ) : (
-              <button onClick={camera.stopCamera} className="btn-secondary">Stop Camera</button>
-            )}
-            {!camera.recording ? (
-              <button onClick={camera.startRecording} className="btn" disabled={!camera.streamActive}>Start Recording</button>
-            ) : (
-              <button onClick={camera.stopRecording} className="btn-danger">Stop Recording</button>
-            )}
-            {camera.recordedUrl && (
-              <a className="btn-outline" href={camera.recordedUrl} download={`recording-${Date.now()}.webm`}>Download Recording</a>
-            )}
-          </div>
-
-          <div className="mt-4 text-sm text-gray-600 grid grid-cols-2 gap-2">
-            <div>Faces: <b>{status.faces}</b></div>
-            <div>Looking at screen: <b>{status.lookingAtScreen ? 'Yes' : 'No'}</b></div>
-            <div>Last detection: {status.lastDetection || 'N/A'}</div>
-            <div>Objects: {status.objectDetections.length ? status.objectDetections.join(', ') : 'N/A'}</div>
-            <div>Interviewer: <b>{interviewerConnected ? 'Connected' : 'Waiting'}</b></div>
-            <div>Remote stream: <b>{remoteActive ? 'On' : 'Off'}</b></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-green-100">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 text-white grid place-items-center font-bold text-lg">J</div>
+              <div>
+                <h1 className="font-bold text-gray-900 flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Video Proctoring System
+                </h1>
+                <p className="text-xs text-gray-600">Live interview session</p>
+              </div>
+              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-medium rounded-full">Candidate</span>
+            </div>
+            <div className="text-sm text-gray-600">
+              Session: <code className="bg-gray-100 px-2 py-1 rounded text-xs">{sessionId}</code>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="lg:col-span-1">
-          <h2 className="text-xl font-medium mb-2">Report</h2>
-          <div className="mb-4 border rounded p-3 bg-white/70 text-sm space-y-1">
-            {!report ? (
-              <div className="text-gray-500">Click Generate Report to compute summary.</div>
-            ) : (
-              <>
-                <div>Candidate: <b>{report.candidateName || 'N/A'}</b></div>
-                <div>Session: <code className="text-xs">{report.sessionId}</code></div>
-                <div>Interview Duration: <b>{report.interviewDuration}</b></div>
-                <div>Focus lost: <b>{report.counts.focusLost}</b></div>
-                <div>Suspicious: multiple faces <b>{report.counts.multipleFaces}</b>, no face <b>{report.counts.noFace}</b>, phone <b>{report.counts.phoneDetected}</b>, notes <b>{report.counts.notesDetected}</b></div>
-                <div>Eye/Mic: eyes closed <b>{report.counts.eyesClosed ?? 0}</b>, drowsiness <b>{report.counts.drowsiness ?? 0}</b>, voices <b>{report.counts.backgroundVoices ?? 0}</b></div>
-                <div>Final Integrity Score: <b>{report.integrity.score}</b>/100</div>
-                <hr className="my-2" />
-                <div className="font-medium">Formatted Proctoring Report</div>
-                <pre className="whitespace-pre-wrap bg-white/60 p-2 rounded border text-xs">
-{buildReportText(report)}
-                </pre>
-                <div className="flex gap-2">
-                  <button className="btn-outline" onClick={async ()=>{ await navigator.clipboard.writeText(buildReportText(report)); setCopied(true); setTimeout(()=>setCopied(false), 1500) }}>{copied ? 'Copied' : 'Copy Text'}</button>
-                  <a className="btn-outline" href={`data:text/plain;charset=utf-8,${encodeURIComponent(buildReportText(report))}`} download={`proctoring-report-${report.sessionId}.txt`}>Download .txt</a>
-                </div>
-              </>
-            )}
+      <div className="max-w-7xl mx-auto px-4 py-4">
+        {endedByInterviewer && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-600" />
+            <span className="text-red-700 text-sm">The interviewer has ended the interview. You can close this page now.</span>
           </div>
+        )}
 
-          <h2 className="text-xl font-medium mb-2">Event Log</h2>
-          <div className="h-[420px] overflow-auto border rounded p-2 bg-white/60">
-            {events.length === 0 && <div className="text-gray-500">No events yet…</div>}
-            {events.map((e, idx) => (
-              <div key={idx} className="border-b py-1">
-                <div className="text-xs text-gray-500">{e.time}</div>
-                <div className="text-sm"><b>{e.type}</b> — {e.details}</div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Main Video Section */}
+          <div className="lg:col-span-2 space-y-3">
+            {/* Name Input */}
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-700 min-w-fit">Name:</label>
+                <input 
+                  defaultValue={candidateName} 
+                  onBlur={(e)=>saveName(e.target.value)} 
+                  placeholder="Enter candidate name" 
+                  className="flex-1 px-3 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500" 
+                />
+                <span className="text-xs text-gray-500 hidden sm:block">Recording controlled by interviewer</span>
               </div>
-            ))}
+            </div>
+
+            {/* Video Container */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="relative bg-gray-900 aspect-video">
+                <video ref={camera.videoRef} className="absolute inset-0 w-full h-full object-contain" playsInline muted></video>
+                <canvas ref={camera.canvasRef} className="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                <video ref={remoteVideoRef} className={`absolute top-2 right-2 w-32 h-24 object-cover rounded border-2 border-white ${remoteActive ? '' : 'hidden'}`} playsInline autoPlay muted></video>
+                <audio ref={remoteAudioRef} autoPlay playsInline className="hidden"></audio>
+                
+                {!camera.streamActive && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center text-white">
+                      <Video className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm opacity-75">Camera not active</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Controls */}
+              <div className="p-3 border-t bg-gray-50">
+                <div className="flex gap-2">
+                  {!camera.streamActive ? (
+                    <button 
+                      onClick={camera.startCamera} 
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-sm font-medium flex items-center gap-2 transition-colors" 
+                      disabled={endedByInterviewer}
+                    >
+                      <Video className="w-4 h-4" />
+                      Start Camera
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={camera.stopCamera} 
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <VideoOff className="w-4 h-4" />
+                      Stop Camera
+                    </button>
+                  )}
+                  {camera.recordedUrl && (
+                    <a 
+                      className="px-3 py-1.5 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded text-sm font-medium flex items-center gap-2 transition-colors" 
+                      href={camera.recordedUrl} 
+                      download={`recording-${Date.now()}.webm`}
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Status Grid */}
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <Users className="w-3 h-3 text-gray-500" />
+                  <span className="text-gray-600">Faces:</span>
+                  <span className="font-medium">{status.faces || 0}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Eye className="w-3 h-3 text-gray-500" />
+                  <span className="text-gray-600">Looking:</span>
+                  <span className="font-medium">{status.lookingAtScreen ? 'Yes' : 'No'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {interviewerConnected ? <Wifi className="w-3 h-3 text-green-500" /> : <WifiOff className="w-3 h-3 text-red-500" />}
+                  <span className="text-gray-600">Interviewer:</span>
+                  <span className="font-medium">{interviewerConnected ? 'Connected' : 'Waiting'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Video className="w-3 h-3 text-gray-500" />
+                  <span className="text-gray-600">Remote:</span>
+                  <span className="font-medium">{remoteActive ? 'On' : 'Off'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">Objects:</span>
+                  <span className="font-medium text-xs">{status.objectDetections?.length ? status.objectDetections.join(', ') : 'None'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600">Last detection:</span>
+                  <span className="font-medium text-xs">{status.lastDetection || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="text-xs text-gray-500 mt-2">
-            Rules: not-looking &gt; 5s, no-face &gt; 10s, multiple faces, objects (phone/book).
+
+          {/* Sidebar */}
+          <div className="space-y-4">
+            {/* Report Card */}
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="p-3 border-b bg-gray-50">
+                <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Report
+                </h3>
+              </div>
+              <div className="p-3">
+                <p className="text-sm text-gray-600">The interviewer will generate the report from their screen.</p>
+              </div>
+            </div>
+
+            {/* Event Log */}
+            <div className="bg-white rounded-lg border border-gray-200">
+              <div className="p-3 border-b bg-gray-50">
+                <h3 className="font-medium text-gray-900">Event Log</h3>
+              </div>
+              <div className="h-80 overflow-auto">
+                <div className="p-3 space-y-2">
+                  {events.length === 0 ? (
+                    <div className="text-gray-500 text-sm text-center py-4">No events yet</div>
+                  ) : (
+                    events.map((e, idx) => (
+                      <div key={idx} className="border-b border-gray-100 pb-2 last:border-b-0">
+                        <div className="text-xs text-gray-500">{e.time}</div>
+                        <div className="text-sm">
+                          <span className="font-medium">{e.type}</span>
+                          <span className="text-gray-600"> — {e.details}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="p-3 border-t bg-gray-50">
+                <p className="text-xs text-gray-500">Rules: not-looking &gt; 5s, no-face &gt; 10s, multiple faces, objects (phone/book)</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   )
 }
-
-function buildReportText(report) {
-  if (!report) return ''
-  const d = report.counts || {}
-  const w = report.integrity?.weights || {}
-  const caps = report.integrity?.caps || {}
-  const ded = report.integrity?.deductions || {}
-
-  const lines = []
-  lines.push('Proctoring Report')
-  lines.push(`Candidate Name: ${report.candidateName || 'N/A'}`)
-  lines.push(`Interview Duration: ${report.interviewDuration || '00:00:00'}`)
-  lines.push(`Number of times focus lost: ${d.focusLost ?? 0}`)
-  lines.push(`Suspicious events: multiple faces ${d.multipleFaces ?? 0}, absence ${d.noFace ?? 0}, phone ${d.phoneDetected ?? 0}, notes ${d.notesDetected ?? 0}`)
-  lines.push(`Eye/Mic events: eyes closed ${d.eyesClosed ?? 0}, drowsiness ${d.drowsiness ?? 0}, voices ${d.backgroundVoices ?? 0}`)
-
-  const parts = [
-    formatDeductionFlat('focus', d.focusLost, w.focusLoss, caps.focusLoss, ded.focusLoss),
-    formatDeductionFlat('no face', d.noFace, w.noFace, caps.noFace, ded.noFace),
-    formatDeductionFlat('multiple faces', d.multipleFaces, w.multipleFaces, caps.multipleFaces, ded.multipleFaces),
-    formatDeductionFlat('phone', d.phoneDetected, w.phone, caps.phone, ded.phone),
-    formatDeductionFlat('notes', d.notesDetected, w.notes, caps.notes, ded.notes),
-    formatDeductionFlat('eyes closed', d.eyesClosed, w.eyesClosed, caps.eyesClosed, ded.eyesClosed),
-    formatDeductionFlat('drowsiness', d.drowsiness, w.drowsiness, caps.drowsiness, ded.drowsiness),
-    formatDeductionFlat('background voices', d.backgroundVoices, w.backgroundVoices, caps.backgroundVoices, ded.backgroundVoices),
-  ]
-  const total = Object.values(ded).reduce((a, b) => a + Number(b || 0), 0)
-  lines.push(`Final Integrity Score = 100 - (${parts.join(' + ')}) = ${report.integrity?.score ?? Math.max(0, 100 - total)}`)
-  return lines.join('\n')
-}
-
-function formatDeductionFlat(label, count=0, wt=0, cap=Infinity, applied=undefined) {
-  const flat = (Number(count||0) > 0) ? Number(wt||0) : 0
-  const capped = Math.min(flat, Number.isFinite(cap) ? cap : flat)
-  const final = applied !== undefined ? applied : capped
-  return `${label}: ${final}`
-}
-
